@@ -261,6 +261,25 @@ function get_header_line(document) {
     return null;
 }
 
+function get_header_line_at(document, index) {
+    const config = vscode.workspace.getConfiguration('rainbow_csv');
+    let comment_prefix = config ? config.get('comment_prefix') : '';
+    const num_lines = document.lineCount;
+    let idx = 0;
+    for (let lnum = 0; lnum < num_lines; ++lnum) {
+        const line_text = document.lineAt(lnum).text;
+        if (!comment_prefix || !line_text.startsWith(comment_prefix)) {
+            if(idx == index){
+                return line_text;
+            }
+            else{
+                idx = idx + 1;
+            }
+        }
+    }
+    return "";
+}
+
 
 function make_header_key(file_path) {
     return 'rbql_header:' + file_path;
@@ -281,6 +300,9 @@ function get_header_from_document(document, delim, policy) {
     return csv_utils.smart_split(get_header_line(document), delim, policy, false)[0];
 }
 
+function get_header_from_document_at(document, delim, policy, index){
+    return csv_utils.smart_split(get_header_line_at(document, index), delim, policy, false)[0];
+}
 
 function get_header(document, delim, policy) {
     var file_path = document.fileName;
@@ -297,6 +319,20 @@ function get_header(document, delim, policy) {
     return get_header_from_document(document, delim, policy);
 }
 
+function get_header_at(document, delim, policy, index){
+    var file_path = document.fileName;
+    if (file_path) {
+        let raw_header = get_from_global_state(make_header_key(file_path), null);
+        if (raw_header) {
+            try {
+                return JSON.parse(raw_header)
+            } catch (err) { // Prior versions stored the header as CSV
+                return csv_utils.smart_split(header, ',', 'quoted', false)[0];
+            }
+        }
+    }
+    return get_header_from_document_at(document, delim, policy, index);
+}
 
 function get_field_by_line_position(fields, query_pos) {
     if (!fields.length)
@@ -331,24 +367,71 @@ function make_hover_text(document, position, language_id, enable_tooltip_column_
     if (col_num == null)
         return null;
     var result = 'Col #' + (col_num + 1);
+    var fromIndex = 1;
+    var toIndex = 3;
+    var headerTitles = ["TYPE"];
+    for(let i = fromIndex; i <= toIndex; i++){
+        var headerTitle;
+        if(i - fromIndex < headerTitles.length){
+            headerTitle = headerTitles[i - fromIndex];
+        }else{
+            headerTitle = "Header" + (i - fromIndex + 1);
+        }
+        headerTitle = ', ' + headerTitle + ': ';
+        var rst = get_hover_text_at(document, delim, policy, col_num, i, headerTitle, enable_tooltip_column_names);
+        if (enable_tooltip_warnings) {
+            var exit = false;
+            var header_length = rst[1];
+            if (warning) {
+                result += '; ERR: Inconsistent double quotes in line';
+                exit = true;
+            } else if (header_length != entries.length) {
+                result += `; WARN: Inconsistent num of fields, header: ${header_length}, this line: ${entries.length}`;
+                exit = true;
+            }
+            if(exit){
+                break;
+            }
+        }
+        result += rst[0];
+    }
 
-    var header = get_header(document, delim, policy);
+    // var header = get_header(document, delim, policy);
+    // if (enable_tooltip_column_names && col_num < header.length) {
+    //     const max_label_len = 50;
+    //     let column_label = header[col_num].trim();
+    //     var short_column_label = column_label.substr(0, max_label_len);
+    //     if (short_column_label != column_label)
+    //         short_column_label = short_column_label + '...';
+    //     result += ', Header: "' + short_column_label + '"';
+    // }
+    // if (enable_tooltip_warnings) {
+    //     if (warning) {
+    //         result += '; ERR: Inconsistent double quotes in line';
+    //     } else if (header.length != entries.length) {
+    //         result += `; WARN: Inconsistent num of fields, header: ${header.length}, this line: ${entries.length}`;
+    //     }
+    // }
+    return result;
+}
+
+function get_hover_text_at(document, delim, policy, col_num, index, headerTitle, enable_tooltip_column_names){
+    let result = "";
+    var header = get_header_at(document, delim, policy, index);
+    let header_length = header.length;
     if (enable_tooltip_column_names && col_num < header.length) {
         const max_label_len = 50;
         let column_label = header[col_num].trim();
         var short_column_label = column_label.substr(0, max_label_len);
         if (short_column_label != column_label)
             short_column_label = short_column_label + '...';
-        result += ', Header: "' + short_column_label + '"';
-    }
-    if (enable_tooltip_warnings) {
-        if (warning) {
-            result += '; ERR: Inconsistent double quotes in line';
-        } else if (header.length != entries.length) {
-            result += `; WARN: Inconsistent num of fields, header: ${header.length}, this line: ${entries.length}`;
+        if(headerTitle != null)
+        {
+            result += headerTitle;
         }
+        result += '"' + short_column_label + '"';
     }
-    return result;
+    return [result, header_length];
 }
 
 
