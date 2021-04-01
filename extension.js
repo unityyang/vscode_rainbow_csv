@@ -367,13 +367,19 @@ function make_hover_text(document, position, language_id, enable_tooltip_column_
     if (col_num == null)
         return null;
     var result = 'Col #' + (col_num + 1);
-    var fromIndex = 1;
-    var toIndex = 3;
-    var headerTitles = ["TYPE"];
+    var title_arr = config.get("custom_tip_header_title");
+    if(title_arr == null){
+        title_arr = [];
+    }
+    if(title_arr.length <= 0){
+        title_arr.add("Header");
+    }
+    var fromIndex = 0;
+    var toIndex = title_arr.length - 1;
     for(let i = fromIndex; i <= toIndex; i++){
         var headerTitle;
-        if(i - fromIndex < headerTitles.length){
-            headerTitle = headerTitles[i - fromIndex];
+        if(i - fromIndex < title_arr.length){
+            headerTitle = title_arr[i - fromIndex];
         }else{
             headerTitle = "Header" + (i - fromIndex + 1);
         }

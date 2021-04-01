@@ -107,6 +107,17 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Enable \"Preview CSV tail\" option in File Explorer context menu"
+                },
+                "rainbow_csv.custom_tip_header_title": {
+                    "type": "array",
+                    "default": [
+                        "Header"
+                    ],
+                    "description": "customize header title when tip, can set multi headers",
+                    "items": {
+                        "type": "string",
+                        "description": "header"
+                    }
                 }
             }
         },
